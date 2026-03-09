@@ -1,0 +1,64 @@
+workflowExternalId: wf_icapi_data_pipeline
+version: '1'
+workflowDefinition:
+  description: 'Run tasks in sequence'
+  tasks:
+    - externalId: 'create_asset_hierarchy_transformation_task'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'create_asset_hierarchy'
+          concurrencyPolicy: fail
+      name: 'create_asset_hierarchy_transformation_task'
+      description: create_asset_hierarchy
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+    - externalId: 'contextualize_ts_assets_transformation_task'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'contextualize_ts_assets'
+          concurrencyPolicy: fail
+      name: 'contextualize_ts_assets_transformation_task'
+      description: contextualize_ts_assets
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+      dependsOn:
+      - externalId: create_asset_hierarchy_transformation_task
+   - externalId: 'icapi_datapoints_extractor_function_task'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'icapi_datapoints_extractor'
+          data: {
+    "sites": ["Sao_Paulo", "Houston", "Oslo", "Kuala_Lumpur", "Hannover", "Nuremberg", "Marseille", "Chicago", "Rotterdam", "London"],
+    "hours": 336,
+    "backfill": true
+}
+        isAsyncComplete: false
+      name: 'icapi_datapoints_extractor_function_task'
+      description: icapi_datapoints_extractor
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+      dependsOn:
+      - externalId: contextualize_ts_assets_transformation_task
+   - externalId: 'oee_timeseries_function_task'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'oee_timeseries'
+          data: {
+    "sites": ["Houston","Oslo","Kuala_Lumpur","Hannover","Nuremberg","Marseille","Sao_Paulo","Chicago","Rotterdam","London"],
+    "lookback_minutes": 10160
+}
+        isAsyncComplete: false
+      name: 'oee_timeseries_function_task'
+      description: oee_timeseries_function_task
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+      dependsOn:
+      - externalId: icapi_datapoints_extractor_function_task      
